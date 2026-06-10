@@ -1,3 +1,4 @@
+from sqlalchemy.orm import Session
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from datetime import datetime
@@ -157,3 +158,66 @@ def list_resumes(db: Session = Depends(get_db)):
         }
         for r in resumes
     ]
+
+@app.get("/resumes/{resume_id}")
+def get_resume(resume_id: int, db: Session = Depends(get_db)):
+    """Get ONE resume by its ID."""
+    resume = db.query(models.Resume).filter(models.Resume.id == resume_id).first()
+
+    if resume is None:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    return {
+        "id": resume.id,
+        "filename": resume.filename,
+        "page_count": resume.page_count,
+        "word_count": resume.word_count,
+        "character_count": resume.character_count,
+        "extracted_text": resume.extracted_text,
+        "uploaded_at": resume.uploaded_at.isoformat() if resume.uploaded_at else None,
+    }
+
+
+
+@app.delete("/resumes/{resume_id}")
+def delete_resume(resume_id: int, db: Session = Depends(get_db)):
+    """Delete ONE resume by its ID."""
+    resume = db.query(models.Resume).filter(models.Resume.id == resume_id).first()
+
+    if resume is None:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    db.delete(resume)   # mark the row for deletion
+    db.commit()         # actually remove it from the database
+
+    return {"message": f"Resume {resume_id} deleted successfully"}
+
+
+@app.put("/resumes/{resume_id}")
+async def update_resume(resume_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Replace an existing resume with a newly uploaded PDF."""
+    resume = db.query(models.Resume).filter(models.Resume.id == resume_id).first()
+
+    if resume is None:
+        raise HTTPException(status_code=404, detail="Resume not found")
+
+    extracted_text, page_count, file_size_kb = await _read_pdf(file)
+
+      # Update the existing row's columns with the new file's data.
+    resume.filename = file.filename
+    resume.page_count = page_count
+    resume.word_count = len(extracted_text.split())
+    resume.character_count = len(extracted_text)
+    resume.extracted_text = extracted_text
+    resume.uploaded_at = datetime.utcnow()
+
+    db.commit()         # save the changes to the database
+    db.refresh(resume)  # reload the updated row
+
+    return {
+        "message": f"Resume {resume_id} updated successfully",
+        "id": resume.id,
+        "filename": resume.filename,
+        "page_count": resume.page_count,
+        "word_count": resume.word_count,
+    }
