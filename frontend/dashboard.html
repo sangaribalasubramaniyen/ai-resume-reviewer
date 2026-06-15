@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Dashboard - AI Resume Reviewer</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>📄 AI Resume Reviewer</h1>
+
+    <script>
+      const API = "http://127.0.0.1:8000";
+
+      // GUARD: no token? You shouldn't be here — go to login.
+      const token = localStorage.getItem("token");
+      if (!token) {
+        window.location.href = "login.html";
+      }
+    </script>
+
+    <p>✅ Logged in. Upload your resume PDF below.
+       <button onclick="logout()" style="background:#6b7280; padding:4px 10px; font-size:13px;">Logout</button>
+    </p>
+    <input type="file" id="fileInput" accept="application/pdf" />
+    <button onclick="uploadResume()">Upload</button>
+    <div id="status"></div>
+    <div id="result"></div>
+    <h2 style="margin-top:30px;">📋 My Saved Resumes</h2>
+    <div id="resumeList"></div>
+
+    <script>
+      function logout() {
+        localStorage.removeItem("token");
+        window.location.href = "login.html";
+      }
+
+      async function uploadResume() {
+        const fileInput = document.getElementById("fileInput");
+        const status = document.getElementById("status");
+        const result = document.getElementById("result");
+        result.innerHTML = "";
+
+        if (!fileInput.files[0]) {
+          status.textContent = "⚠️ Please choose a PDF file first.";
+          return;
+        }
+
+        status.textContent = "⏳ Uploading...";
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+
+        try {
+          const res = await fetch(`${API}/upload-resume`, {
+            method: "POST",
+            headers: { "Authorization": "Bearer " + localStorage.getItem("token") },
+            body: formData,
+          });
+
+          if (res.status === 401) {
+            status.textContent = "🔒 Session expired. Please log in again.";
+            logout();
+            return;
+          }
+          if (!res.ok) {
+            status.textContent = `❌ Error: ${res.status}`;
+            return;
+          }
+
+          const data = await res.json();
+          status.textContent = "✅ Done!";
+
+          const review = data.review;
+         const goodList = review.good.length
+            ? review.good.map(item => `<li>✅ ${item}</li>`).join("")
+            : "<li>No strong points detected yet.</li>";
+           const improveList = review.improve.length
+            ? review.improve.map(item => `<li>⚠️ ${item}</li>`).join("")
+            : "<li>🎉 Great! No major issues found.</li>";
+
+           result.innerHTML = `
+            <div class="card">
+              <h3>${data.filename}</h3>
+              <div class="stat"><span>Pages</span><strong>${data.page_count}</strong></div>
+              <div class="stat"><span>Words</span><strong>${data.word_count}</strong></div>
+              <div class="stat"><span>Characters</span><strong>${data.character_count}</strong></div>
+            </div>
+
+            <div class="card">
+              <h3>Resume Score: ${review.score}/100</h3>
+              <h4 style="color:#16a34a;">What's good</h4>
+              <ul>${goodList}</ul>
+              <h4 style="color:#dc2626;">Improve these</h4>
+              <ul>${improveList}</ul>
+            </div>
+          `;
+
+          loadResumes(); // refresh the saved-resumes list after a successful upload
+        } catch (err) {
+          status.textContent = "❌ Could not reach the API. Is the server running?";
+        }
+      }
+
+      async function loadResumes() {
+        const list = document.getElementById("resumeList");
+        const res = await fetch(`${API}/resumes`, {
+          headers: { "Authorization": "Bearer " + localStorage.getItem("token") },
+        });
+        if (!res.ok) { list.innerHTML = "<p>Could not load resumes.</p>"; return; }
+
+        const resumes = await res.json();
+        if (resumes.length === 0) { list.innerHTML = "<p>No resumes saved yet.</p>"; return; }
+
+        list.innerHTML = resumes.map(r => `
+          <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <strong>${r.filename}</strong><br>
+              <small>${r.word_count} words · ${r.page_count} pages</small>
+            </div>
+            <button onclick="deleteResume(${r.id})" style="background:#dc2626;">Delete</button>
+          </div>
+        `).join("");
+      }
+
+      async function deleteResume(id) {
+        if (!confirm("Delete this resume?")) return;
+        const res = await fetch(`${API}/resumes/${id}`, {
+          method: "DELETE",
+          headers: { "Authorization": "Bearer " + localStorage.getItem("token") },
+        });
+        if (res.ok) loadResumes();   // refresh the list after deleting
+      }
+
+      loadResumes();
+    </script>
+  </body>
+  </html>

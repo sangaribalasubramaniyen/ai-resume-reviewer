@@ -1,0 +1,35 @@
+body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; }
+
+h1 { color: #2563eb; }
+
+.card { border: 1px solid #ddd; border-radius: 10px; padding: 20px; margin-top: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+
+
+  /* Default (blue) button */
+button { background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 15px;}
+
+ /* Hover ONLY when the button is enabled */
+button:hover:not(:disabled) { background: #1d4ed8; }
+
+/* Disabled = grey, stays grey even on hover, not clickable */
+button:disabled { background: #9ca3af; cursor: not-allowed; }
+
+/* Green button (signup) */
+.btn-green { background: #16a34a; }
+.btn-green:hover:not(:disabled) { background: #15803d; }
+
+
+
+input[type=email], input[type=password], input[type=text] { display:block; width:100%; padding:8px; margin:6px 0; border:1px solid #ccc;
+border-radius:6px; box-sizing:border-box; }
+
+.stat { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #eee; }
+
+.preview { background: #f8fafc; padding: 12px; border-radius: 6px; white-space: pre-wrap; font-size: 13px; max-height: 200px;
+overflow-y: auto; }
+
+#status, #authStatus { margin-top: 12px; color: #666; }
+
+.row { display:flex; gap:10px; }
+
+.error { color: #dc2626; font-size: 13px; margin: 2px 0 8px; min-height: 16px; }

@@ -1,0 +1,52 @@
+ <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Login - AI Resume Reviewer</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>📄 AI Resume Reviewer</h1>
+
+    <div class="card">
+      <h3>Login</h3>
+      <input type="email" id="email" placeholder="Email" />
+      <input type="password" id="password" placeholder="Password" />
+      <button onclick="login()">Login</button>
+      <div id="authStatus"></div>
+      <p style="margin-top:14px;">New here? <a href="signup.html">Create an account</a></p>
+    </div>
+
+    <script>
+      const API = "http://127.0.0.1:8000";
+
+      if (localStorage.getItem("token")) {
+        window.location.href = "dashboard.html";
+      }
+
+      async function login() {
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+        const authStatus = document.getElementById("authStatus");
+
+        const form = new URLSearchParams();
+        form.append("username", email);
+        form.append("password", password);
+
+        const res = await fetch(`${API}/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: form,
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem("token", data.access_token);
+          window.location.href = "dashboard.html";
+        } else {
+          authStatus.textContent = "❌ Invalid email or password";
+        }
+      }
+    </script>
+  </body>
+  </html>
