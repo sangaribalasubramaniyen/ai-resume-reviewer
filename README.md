@@ -1,50 +1,77 @@
-# AI Resume Reviewer
+# 📄 AI Resume Reviewer
 
-An AI-powered resume analysis API built with FastAPI and Claude.
+A full-stack web application that analyzes resumes (PDF), scores them against
+best-practice rules, and shows what to improve — built with FastAPI and PostgreSQL.
 
-## Features (Planned)
+## ✨ Features
 
-- Upload resume (PDF/DOCX)
-- AI-powered analysis using Claude API
-- ATS compatibility score
-- Section-wise feedback (Summary, Experience, Skills, Education)
-- Job description matching
-- Keyword gap analysis
-- Improvement suggestions
+- 🔐 **User authentication** — sign up / login with JWT tokens and bcrypt-hashed passwords
+- 📤 **PDF upload & parsing** — extracts text, word/page/character counts
+- 🎯 **Rule-based resume scoring** — scores 0–100 and lists strengths + improvements (no paid API)
+- 👤 **Per-user data isolation** — each user only sees and manages their own resumes
+- 💾 **Persistent storage** — resumes saved in PostgreSQL
+- 🌐 **Clean frontend** — vanilla HTML/CSS/JS with client-side validation
 
-## Tech Stack
 
-- **Backend:** FastAPI (Python 3.14)
-- **AI:** Anthropic Claude API
-- **Database:** PostgreSQL
-- **PDF Parsing:** PyPDF2, pdfplumber
-- **Auth:** JWT
-- **Deployment:** Docker + Render
+## 🛠️ Tech Stack
 
-## Setup
+| Layer    | Technology                          |
+|----------|-------------------------------------|
+| Backend  | Python, FastAPI, Uvicorn            |
+| Database | PostgreSQL, SQLAlchemy ORM          |
+| Auth     | JWT (python-jose), bcrypt           |
+| PDF      | pdfplumber                          |
+| Frontend | HTML, CSS, JavaScript (fetch API)   |
 
-```powershell
-# Clone the repo
-git clone https://github.com/<your-username>/ai-resume-reviewer.git
+## 🚀 Getting Started
+
+### 1. Clone the repo
+```bash
+git clone https://github.com/sangaribalasubramaniyen/ai-resume-reviewer.git
 cd ai-resume-reviewer
 
-# Create virtual environment
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-
-# Install dependencies
+2. Install dependencies
 pip install -r requirements.txt
 
-# Run the app
-uvicorn main:app --reload
-```
+3. Set up environment variables
+Copy .env.example to .env and fill in your values:
+DATABASE_URL=postgresql://user:password@localhost:5432/resume_db
+SECRET_KEY=your-secret-key
 
-Visit `http://localhost:8000/docs` for interactive API documentation.
+4. Run the server
+python -m uvicorn main:app --reload
 
-## Status
+5. Open the frontend
+Open frontend/login.html in your browser.
 
-Started: May 2026 — Active development.
+📚 API Endpoints
 
-## Author
+┌────────┬────────────────┬───────────────────────────────────┐
+│ Method │    Endpoint    │            Description            │
+├────────┼────────────────┼───────────────────────────────────┤
+│ POST   │ /signup        │ Register a new user               │
+├────────┼────────────────┼───────────────────────────────────┤
+│ POST   │ /login         │ Log in, returns a JWT token       │
+├────────┼────────────────┼───────────────────────────────────┤
+│ POST   │ /upload-resume │ Upload a PDF and get its review   │
+├────────┼────────────────┼───────────────────────────────────┤
+│ GET    │ /resumes       │ List the logged-in user's resumes │
+├────────┼────────────────┼───────────────────────────────────┤
+│ DELETE │ /resumes/{id}  │ Delete one of your resumes        │
+└────────┴────────────────┴───────────────────────────────────┘
 
-Sangari B
+🔒 Security Notes
+- Passwords are hashed with bcrypt (never stored in plain text)
+- All resume routes are scoped to the authenticated user (prevents IDOR)
+- Secrets are kept in .env (gitignored), never committed
+
+🗺️ Roadmap
+- [ ] Weighted scoring rules
+- [ ] Optional AI-powered analysis (Claude)
+- [ ] Deploy to a live URL
+
+
+
+
+
+
