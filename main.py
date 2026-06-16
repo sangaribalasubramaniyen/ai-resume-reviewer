@@ -12,11 +12,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 from auth import get_current_user
 
 
-# Load variables from .env (like ANTHROPIC_API_KEY) into the environment.
-# Must run BEFORE we import analyzer, because analyzer reads the key at import.
+# Load variables from .env (like SECRET_KEY, DATABASE_URL) into the environment.
 load_dotenv()
 
-from analyzer import analyze_resume
 from analyze import analyze_resume_text
 import models
 from database import engine, get_db
@@ -133,36 +131,6 @@ async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_
         "preview": extracted_text[:500] + ("..." if len(extracted_text) > 500 else ""),
         "full_text": extracted_text,
         "review": review, 
-    })
-
-
-@app.post("/analyze-resume")
-async def analyze_resume_endpoint(file: UploadFile = File(...)):
-    """
-    Upload a resume PDF, extract the text, then send it to Claude
-    for AI-powered analysis (ATS score, strengths, weaknesses, suggestions).
-    """
-    extracted_text, page_count, file_size_kb = await _read_pdf(file)
-
-    # Guard: an empty/scanned PDF has no text to analyze.
-    if len(extracted_text.strip()) < 50:
-        raise HTTPException(
-            status_code=400,
-            detail="Could not extract enough text. Is this a scanned image PDF?"
-        )
-
-    try:
-        feedback = analyze_resume(extracted_text)
-    except Exception as e:
-        raise HTTPException(
-            status_code=502,
-            detail=f"AI analysis failed: {str(e)}"
-        )
-
-    return JSONResponse({
-        "filename": file.filename,
-        "page_count": page_count,
-        "analysis": feedback,
     })
 
 
