@@ -205,7 +205,7 @@ def get_resume(resume_id: int, db: Session = Depends(get_db), current_user: mode
           "extracted_text": resume.extracted_text,
           "uploaded_at": resume.uploaded_at.isoformat() if resume.uploaded_at else None,
       }
-
+@app.delete("/resumes/{resume_id}")
 def delete_resume(resume_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
       """Delete ONE resume — only if it belongs to the logged-in user."""
       resume = (

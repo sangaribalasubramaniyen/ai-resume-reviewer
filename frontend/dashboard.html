@@ -1,136 +1,240 @@
 <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Dashboard - AI Resume Reviewer</title>
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <h1>📄 AI Resume Reviewer</h1>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard - AI Resume Reviewer</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
 
-    <script>
-      const API = "http://127.0.0.1:8000";
+  <!-- Toast element (invisible until showToast() is called) -->
+  <div id="toast" class="toast"></div>
 
-      // GUARD: no token? You shouldn't be here — go to login.
-      const token = localStorage.getItem("token");
-      if (!token) {
-        window.location.href = "login.html";
-      }
-    </script>
+  <!-- ===== Top bar ===== -->
+  <nav class="navbar">
+    <div class="brand">📄 AI Resume Reviewer</div>
+    <button class="btn-grey" onclick="logout()">Logout</button>
+  </nav>
 
-    <p>✅ Logged in. Upload your resume PDF below.
-       <button onclick="logout()" style="background:#6b7280; padding:4px 10px; font-size:13px;">Logout</button>
-    </p>
-    <input type="file" id="fileInput" accept="application/pdf" />
-    <button onclick="uploadResume()">Upload</button>
-    <div id="status"></div>
+  <!-- Guard: no token -> go to login -->
+  <script>
+    const API = "http://127.0.0.1:8000";
+    const token = localStorage.getItem("token");
+    if (!token) window.location.href = "login.html";
+  </script>
+
+  <div class="container">
+
+    <!-- ===== Upload card ===== -->
+    <div class="card upload-card">
+      <h2>Upload your resume</h2>
+      <p>Get an instant score and improvement tips.</p>
+       <div class="upload-row">
+      <input type="file" id="fileInput" accept="application/pdf" />
+      <button id="uploadBtn" onclick="uploadResume()" disabled>Upload</button>
+     </div>
+      <div id="status"></div>
+    </div>
+
+    <!-- ===== Result (filled by JS after upload) ===== -->
     <div id="result"></div>
-    <h2 style="margin-top:30px;">📋 My Saved Resumes</h2>
+
+    <!-- ===== Saved resumes ===== -->
+    <h2 style="margin: 28px 0 14px;">📋 My Saved Resumes</h2>
     <div id="resumeList"></div>
 
-    <script>
-      function logout() {
-        localStorage.removeItem("token");
-        window.location.href = "login.html";
+  </div>
+
+  <script>
+    // Reusable toast: showToast("message", "success" | "error" | "info")
+    function showToast(message, type = "info", duration = 2500) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.className = "toast " + type;
+      void toast.offsetWidth;            // restart animation on repeat calls
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), duration);
+    }
+
+    function logout() {
+      if (!confirm("Are you sure you want to log out?")) return;
+      localStorage.removeItem("token");
+      localStorage.setItem("flash", "👋 Logged out successfully");
+      window.location.href = "login.html";
+    }
+
+     const fileInput = document.getElementById("fileInput");
+     const uploadBtn = document.getElementById("uploadBtn");
+     fileInput.addEventListener("change", () => {
+     uploadBtn.disabled = !fileInput.files.length;
+     document.getElementById("result").innerHTML = "";   // clear old score when a new file is chosen
+     document.getElementById("status").textContent = "";
+     });
+
+    // Pick ring color + message based on score
+    function scoreMeta(score) {
+      if (score >= 75) return { color: "#16a34a", msg: "Great score! 👍 Your resume is strong." };
+      if (score >= 50) return { color: "#f59e0b", msg: "Decent — a few tweaks will push it higher." };
+      return { color: "#dc2626", msg: "Needs work. Focus on the improvement tips below." };
+    }
+
+    // Build the circular SVG score ring
+    function buildRing(score) {
+      const r = 60;                       // radius
+      const c = 2 * Math.PI * r;          // circumference
+      const offset = c * (1 - score / 100);
+      const { color } = scoreMeta(score);
+      return `
+        <div class="ring-wrap">
+          <svg width="150" height="150" viewBox="0 0 150 150">
+            <circle class="ring-bg" cx="75" cy="75" r="${r}"></circle>
+            <circle class="ring-fg" cx="75" cy="75" r="${r}"
+              stroke="${color}"
+              stroke-dasharray="${c}"
+              stroke-dashoffset="${offset}"></circle>
+          </svg>
+          <div class="ring-label">
+            <span class="num" style="color:${color}">${score}</span>
+            <span class="max">/ 100</span>
+          </div>
+        </div>`;
+    }
+
+    async function uploadResume() {
+      const fileInput = document.getElementById("fileInput");
+      const status = document.getElementById("status");
+      const result = document.getElementById("result");
+      result.innerHTML = "";
+
+      if (!fileInput.files[0]) {
+        status.textContent = "⚠️ Please choose a PDF file first.";
+        return;
       }
 
-      async function uploadResume() {
-        const fileInput = document.getElementById("fileInput");
-        const status = document.getElementById("status");
-        const result = document.getElementById("result");
-        result.innerHTML = "";
+      status.textContent = "⏳ Uploading...";
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
 
-        if (!fileInput.files[0]) {
-          status.textContent = "⚠️ Please choose a PDF file first.";
+      try {
+        const res = await fetch(`${API}/upload-resume`, {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + localStorage.getItem("token") },
+          body: formData,
+        });
+
+        if (res.status === 401) {
+          status.textContent = "🔒 Session expired. Please log in again.";
+          logout();
+          return;
+        }
+        if (!res.ok) {
+          status.textContent = `❌ Error: ${res.status}`;
           return;
         }
 
-        status.textContent = "⏳ Uploading...";
-        const formData = new FormData();
-        formData.append("file", fileInput.files[0]);
+        const data = await res.json();
+        status.textContent = "✅ Done!";
+        showToast("✅ Resume uploaded & scored!", "success");
 
-        try {
-          const res = await fetch(`${API}/upload-resume`, {
-            method: "POST",
-            headers: { "Authorization": "Bearer " + localStorage.getItem("token") },
-            body: formData,
-          });
+        const review = data.review;
+        const { msg } = scoreMeta(review.score);
 
-          if (res.status === 401) {
-            status.textContent = "🔒 Session expired. Please log in again.";
-            logout();
-            return;
-          }
-          if (!res.ok) {
-            status.textContent = `❌ Error: ${res.status}`;
-            return;
-          }
+        const goodList = review.good.length
+          ? review.good.map(item => `<li>✅ ${item}</li>`).join("")
+          : "<li>No strong points detected yet.</li>";
+        const improveList = review.improve.length
+          ? review.improve.map(item => `<li>⚠️ ${item}</li>`).join("")
+          : "<li>🎉 No major issues found.</li>";
 
-          const data = await res.json();
-          status.textContent = "✅ Done!";
-
-          const review = data.review;
-         const goodList = review.good.length
-            ? review.good.map(item => `<li>✅ ${item}</li>`).join("")
-            : "<li>No strong points detected yet.</li>";
-           const improveList = review.improve.length
-            ? review.improve.map(item => `<li>⚠️ ${item}</li>`).join("")
-            : "<li>🎉 Great! No major issues found.</li>";
-
-           result.innerHTML = `
-            <div class="card">
-              <h3>${data.filename}</h3>
-              <div class="stat"><span>Pages</span><strong>${data.page_count}</strong></div>
-              <div class="stat"><span>Words</span><strong>${data.word_count}</strong></div>
-              <div class="stat"><span>Characters</span><strong>${data.character_count}</strong></div>
+        result.innerHTML = `
+          <!-- Score ring -->
+          <div class="card">
+            <div class="score-hero">
+              ${buildRing(review.score)}
+              <div class="score-text">
+                <h3>Resume Score</h3>
+                <p>${msg}</p>
+              </div>
             </div>
+          </div>
 
-            <div class="card">
-              <h3>Resume Score: ${review.score}/100</h3>
-              <h4 style="color:#16a34a;">What's good</h4>
-              <ul>${goodList}</ul>
-              <h4 style="color:#dc2626;">Improve these</h4>
-              <ul>${improveList}</ul>
+          <!-- Stats -->
+          <div class="card">
+            <div class="stats-grid">
+              <div class="stat-box"><div class="val">${data.page_count}</div><div class="lbl">Pages</div></div>
+              <div class="stat-box"><div class="val">${data.word_count}</div><div class="lbl">Words</div></div>
+              <div class="stat-box"><div class="val">${data.character_count}</div><div class="lbl">Characters</div></div>
             </div>
-          `;
+          </div>
 
-          loadResumes(); // refresh the saved-resumes list after a successful upload
-        } catch (err) {
-          status.textContent = "❌ Could not reach the API. Is the server running?";
-        }
+          <!-- Good / Improve -->
+          <div class="card">
+            <div class="feedback-grid">
+              <div class="feedback-col good">
+                <h4>✅ What's Good</h4>
+                <ul>${goodList}</ul>
+              </div>
+              <div class="feedback-col improve">
+                <h4>⚠️ Improve These</h4>
+                <ul>${improveList}</ul>
+              </div>
+            </div>
+          </div>
+        `;
+
+        loadResumes();
+      } catch (err) {
+        status.textContent = "❌ Could not reach the API. Is the server running?";
       }
+    }
 
-      async function loadResumes() {
-        const list = document.getElementById("resumeList");
+    async function loadResumes() {
+      const list = document.getElementById("resumeList");
+      try {
         const res = await fetch(`${API}/resumes`, {
           headers: { "Authorization": "Bearer " + localStorage.getItem("token") },
         });
-        if (!res.ok) { list.innerHTML = "<p>Could not load resumes.</p>"; return; }
+        if (!res.ok) { list.innerHTML = "<p class='empty'>Could not load resumes.</p>"; return; }
 
         const resumes = await res.json();
-        if (resumes.length === 0) { list.innerHTML = "<p>No resumes saved yet.</p>"; return; }
+        if (resumes.length === 0) { list.innerHTML = "<p class='empty'>No resumes saved yet.</p>"; return; }
 
         list.innerHTML = resumes.map(r => `
-          <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="resume-item">
             <div>
               <strong>${r.filename}</strong><br>
               <small>${r.word_count} words · ${r.page_count} pages</small>
             </div>
-            <button onclick="deleteResume(${r.id})" style="background:#dc2626;">Delete</button>
+            <button class="btn-red" onclick="deleteResume(${r.id})">Delete</button>
           </div>
         `).join("");
+      } catch (err) {
+        list.innerHTML = "<p class='empty'>❌ Could not reach the API.</p>";
       }
+    }
 
-      async function deleteResume(id) {
-        if (!confirm("Delete this resume?")) return;
+    async function deleteResume(id) {
+      if (!confirm("Delete this resume?")) return;
+      try {
         const res = await fetch(`${API}/resumes/${id}`, {
           method: "DELETE",
           headers: { "Authorization": "Bearer " + localStorage.getItem("token") },
         });
-        if (res.ok) loadResumes();   // refresh the list after deleting
+        if (res.ok) {
+          showToast("🗑️ Resume deleted successfully", "success");
+          document.getElementById("result").innerHTML = "";   
+          document.getElementById("status").textContent = ""; 
+          loadResumes();
+        } else {
+          showToast("❌ Could not delete resume", "error");
+        }
+      } catch (err) {
+        showToast("❌ Could not reach the server", "error");
       }
+    }
 
-      loadResumes();
-    </script>
-  </body>
-  </html>
+    loadResumes();
+  </script>
+</body>
+</html>
