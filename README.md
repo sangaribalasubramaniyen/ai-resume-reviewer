@@ -3,6 +3,11 @@
 A full-stack web application that analyzes resumes (PDF), scores them against
 best-practice rules, and shows what to improve — built with FastAPI and PostgreSQL.
 
+### 🔗 Live Demo
+**👉 [ai-resume-reviewer-app.onrender.com](https://ai-resume-reviewer-app.onrender.com)**
+
+> ⏳ *Hosted on a free tier — the first load may take ~30–50 seconds while the server wakes up from sleep. After that it's fast.*
+
 ## ✨ Features
 
 - 🔐 **User authentication** — sign up / login with JWT tokens and bcrypt-hashed passwords
@@ -66,9 +71,10 @@ Open frontend/login.html in your browser.
 - Secrets are kept in .env (gitignored), never committed
 
 🗺️ Roadmap
-- [ ] Weighted scoring rules
-- [ ] Optional AI-powered analysis (Claude)
-- [ ] Deploy to a live URL
+- [x] Weighted scoring rules
+- [x] Deploy to a live URL (Render + Neon PostgreSQL)
+- [ ] Resume keyword / ATS matching against a job description
+- [ ] Export the review as a downloadable PDF report
 
 
 
