@@ -8,32 +8,54 @@
 </head>
 <body>
 
-  <div class="auth-wrap">
-    <h1 style="text-align:center; color:var(--blue); font-size:22px; margin-bottom:20px;">
-      📄 AI Resume Reviewer
-    </h1>
+  <div class="auth-split">
 
-    <div class="card">
-      <h3>Create an account</h3>
-
-      <input type="email" id="email" placeholder="example@gmail.com" />
-      <div class="error" id="emailError"></div>
-
-      <div style="position:relative;">
-        <input type="password" id="password" placeholder="Password" style="padding-right:42px;" />
-         <span id="togglePass" onclick="togglePassword()"
-        style="position:absolute; right:12px; top:50%; transform:translateY(-50%); cursor:pointer; color:#6b7280;
-        display:flex;"></span>
+    <!-- ===== Left: branded panel ===== -->
+    <aside class="auth-brand">
+      <div class="auth-brand-inner">
+        <div class="auth-logo">📄 AI Resume Reviewer</div>
+        <h2 class="auth-tagline">Get your resume scored in seconds</h2>
+        <p class="auth-sub">Instant, actionable feedback to help you land more interviews.</p>
+        <ul class="auth-features">
+          <li>0–100 ATS-style score</li>
+          <li>Section-by-section tips</li>
+          <li>Private &amp; secure</li>
+        </ul>
       </div>
-      <div class="error" id="passError"></div>
+    </aside>
 
-      <button id="signupBtn" onclick="signup()" class="btn-green" disabled style="width:100%;">Sign up</button>
-      <div id="authStatus" style="margin-top:12px; font-size:14px; color:var(--muted);"></div>
+    <!-- ===== Right: signup form ===== -->
+    <main class="auth-form-side">
+      <div class="auth-form-box">
+        <h3 class="auth-form-title">Create your account</h3>
+        <p class="auth-form-subtitle">Start scoring your resume — it's free</p>
 
-      <p style="margin-top:16px; text-align:center; font-size:14px;">
-        Already have an account? <a href="login.html">Login</a>
-      </p>
-    </div>
+        <label for="email" class="field-label">Email</label>
+        <div class="input-icon-wrap">
+          <span class="input-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+          </span>
+          <input type="email" id="email" placeholder="example@gmail.com" />
+        </div>
+        <div class="error" id="emailError"></div>
+
+        <label for="password" class="field-label">Password</label>
+        <div class="input-icon-wrap">
+          <span class="input-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          </span>
+          <input type="password" id="password" placeholder="At least 6 characters" />
+          <span id="togglePass" onclick="togglePassword()" class="input-toggle"></span>
+        </div>
+        <div class="error" id="passError"></div>
+
+        <button id="signupBtn" onclick="signup()" class="btn-block" disabled>Sign up</button>
+        <div id="authStatus" class="auth-status"></div>
+
+        <p class="auth-switch">Already have an account? <a href="login.html">Login</a></p>
+      </div>
+    </main>
+
   </div>
 
   <script>
@@ -106,6 +128,11 @@
         return;
       }
 
+      // --- loading state ---
+      const originalText = signupBtn.innerHTML;
+      signupBtn.disabled = true;
+      signupBtn.innerHTML = '<span class="btn-spinner"></span> Creating account...';
+
       try {
         const res = await fetch(`${API}/signup`, {
           method: "POST",
@@ -115,13 +142,18 @@
 
         if (res.ok) {
           authStatus.textContent = "✅ Account created! Redirecting to login...";
+          // keep button disabled while we redirect
           setTimeout(() => { window.location.href = "login.html"; }, 1500);
         } else {
           const err = await res.json();
           authStatus.textContent = "❌ " + (err.detail || "Signup failed");
+          signupBtn.disabled = false;
+          signupBtn.innerHTML = originalText;
         }
       } catch (e) {
         authStatus.textContent = "❌ Could not reach the server. Is it running?";
+        signupBtn.disabled = false;
+        signupBtn.innerHTML = originalText;
       }
     }
   </script>
