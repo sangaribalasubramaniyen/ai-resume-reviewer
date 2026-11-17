@@ -10,6 +10,11 @@ from pydantic import BaseModel
 from auth import hash_password, verify_password, create_access_token
 from fastapi.security import OAuth2PasswordRequestForm
 from auth import get_current_user
+from datetime import timedelta
+import hashlib
+import os
+import secrets
+from emailer import send_email
 
 
 # Load variables from .env (like SECRET_KEY, DATABASE_URL) into the environment.
@@ -39,6 +44,18 @@ app.add_middleware(
 class UserCreate(BaseModel):
     email: str
     password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+RESET_TOKEN_EXPIRE_MINUTES = 30
 
 
 
@@ -249,3 +266,70 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
     token = create_access_token(data={"sub": db_user.email})
     return {"access_token": token, "token_type": "bearer"}
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+@app.post("/forgot-password")
+def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Email a one-time reset link. Always returns the same response so the
+    endpoint can't be used to discover which emails are registered."""
+    generic = {"message": "If that email is registered, a reset link has been sent."}
+
+    user = db.query(models.User).filter(models.User.email == body.email.strip()).first()
+    if user is None:
+        return generic
+
+    # Invalidate any earlier unused tokens for this user.
+    db.query(models.PasswordResetToken).filter(
+        models.PasswordResetToken.user_id == user.id,
+        models.PasswordResetToken.used == False,  # noqa: E712
+    ).update({"used": True})
+
+    token = secrets.token_urlsafe(32)
+    db.add(models.PasswordResetToken(
+        user_id=user.id,
+        token_hash=_hash_token(token),
+        expires_at=datetime.utcnow() + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES),
+    ))
+    db.commit()
+
+    base = os.getenv("FRONTEND_URL", "https://ai-resume-reviewer-app.onrender.com").rstrip("/")
+    link = f"{base}/reset.html?token={token}"
+    try:
+        send_email(
+            user.email,
+            "Reset your AI Resume Reviewer password",
+            "We received a request to reset your password.\n\n"
+            f"Open this link within {RESET_TOKEN_EXPIRE_MINUTES} minutes:\n{link}\n\n"
+            "If you didn't request this, you can ignore this email.",
+        )
+    except Exception as e:  # don't leak delivery problems to the client
+        print(f"[forgot-password] email send failed: {e}")
+
+    return generic
+
+
+@app.post("/reset-password")
+def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Set a new password using a valid, unused, unexpired reset token."""
+    if len(body.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+    record = db.query(models.PasswordResetToken).filter(
+        models.PasswordResetToken.token_hash == _hash_token(body.token)
+    ).first()
+
+    if record is None or record.used or record.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="This reset link is invalid or has expired")
+
+    user = db.query(models.User).filter(models.User.id == record.user_id).first()
+    if user is None:
+        raise HTTPException(status_code=400, detail="This reset link is invalid or has expired")
+
+    user.hashed_password = hash_password(body.new_password)
+    record.used = True
+    db.commit()
+    return {"message": "Password updated. You can now log in."}
